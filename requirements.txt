@@ -1,0 +1,6 @@
+customtkinter>=5.2.0
+qrcode[pil]>=7.4
+Pillow>=10.0
+pyzbar>=0.1.9
+zxing-cpp>=2.0
+numpy>=1.24

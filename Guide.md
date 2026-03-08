@@ -15,10 +15,13 @@
 2. **照片整理**：扫描导入的照片文件夹 → 识别二维码分隔符 → 自动分类到对应患者文件夹
 
 ### 技术特点
-- **现代化 UI**：基于 customtkinter，浅色模式，蓝色主题
+- **现代化 UI**：基于 customtkinter，Fluent + 医疗风格设计
+- **玻璃质感卡片**：半透明背景，轻盈柔和
 - **高 DPI 支持**：使用 CTkImage 适配高分辨率屏幕
 - **全屏展示**：二维码可全屏显示，方便相机拍摄
 - **后台处理**：多线程扫描，GUI 不卡顿
+- **配置持久化**：自动保存用户设置
+- **日志系统**：完整操作日志记录
 
 ---
 
@@ -28,26 +31,23 @@
 |------|-----|------|
 | GUI | `customtkinter` | 现代化 tkinter 封装，支持高 DPI |
 | 二维码生成 | `qrcode[pil]` | pip 安装 |
-| 二维码识别 | `pyzbar` | pip 安装，需要系统依赖 |
+| 二维码识别 | `pyzbar` | pip 安装，需要 DLL 依赖 |
+| 备选识别 | `zxing-cpp` | pyzbar 不可用时的备选 |
 | 图片处理 | `Pillow` | pip 安装 |
-| 打印 | `win32print` / `os.startfile` | 优先用 `os.startfile` |
+| 打印 | `os.startfile` | Windows 系统调用 |
 
 ### 安装命令
 ```bash
-pip install customtkinter qrcode[pil] pyzbar Pillow
+pip install -r requirements.txt
+```
+
+或手动安装：
+```bash
+pip install customtkinter qrcode[pil] pyzbar Pillow zxing-cpp numpy
 ```
 
 ### Windows 上 pyzbar 的特殊依赖
-`pyzbar` 在 Windows 需要 `zbar` 的 DLL：
-```bash
-pip install pyzbar    # 新版本通常自带 DLL
-```
-
-**备选方案**：如果 `pyzbar` 导入报错，改用 `zxing-cpp`：
-```bash
-pip install zxing-cpp numpy
-```
-代码会自动检测并使用可用的库。
+`pyzbar` 在 Windows 需要 `zbar` 的 DLL，新版本通常自带。打包 exe 时需要手动添加 DLL 文件。
 
 ---
 
@@ -55,16 +55,126 @@ pip install zxing-cpp numpy
 
 ```
 photo_sorting/
-├── main.py          ← 唯一入口，所有代码写在这一个文件里
-├── README.txt       ← 用户使用说明
-└── Guide.md         ← 本开发指南
+├── main.py              ← 唯一入口，所有代码写在这一个文件里
+├── requirements.txt     ← 依赖列表
+├── README.txt           ← 用户使用说明
+└── Guide.md             ← 本开发指南
 ```
 
-不需要任何子模块、配置文件、数据库。
+### 用户数据目录
+```
+~/.photo_sorting/
+├── config.json          ← 用户配置（文件夹路径、操作模式等）
+└── photo_sorting.log    ← 运行日志
+```
 
 ---
 
-## 四、二维码数据格式
+## 四、Design Tokens（视觉规范）
+
+### 颜色体系
+
+| 用途 | 颜色 | 说明 |
+|------|------|------|
+| 页面背景 | `#F3F4F6` | 轻盈、柔和、医疗感 |
+| 卡片背景 | `#FFFFFFCC` | 半透明白，模拟玻璃 |
+| 卡片边框 | `#E5E7EB` | 低对比度、柔和 |
+| 主色（按钮） | `#2A7BF4` | Fluent 蓝 |
+| 主色 hover | `#1E63D8` | 深一点的蓝 |
+| 次按钮背景 | `#F9FAFB` | 白灰色 |
+| 次按钮边框 | `#D1D5DB` | 轻边框 |
+| 文本主色 | `#1F2937` | 深灰，不用纯黑 |
+| 文本次色 | `#6B7280` | 标签、提示文字 |
+| 成功色 | `#22C55E` | 绿色 |
+| 警告色 | `#F59E0B` | 橙色 |
+| 错误色 | `#EF4444` | 红色 |
+
+### 字体体系
+
+| 用途 | 字号 | 字重 |
+|------|------|------|
+| 标题（Section Title） | 16px | Medium |
+| 标签（Label） | 14px | Regular |
+| 输入框文字 | 14px | Regular |
+| 按钮文字 | 14px | Medium |
+| 提示文字 | 12px | Regular |
+
+字体优先级：`Microsoft YaHei UI` > `Segoe UI`
+
+### 间距体系
+
+| 用途 | 数值 |
+|------|------|
+| 页面左右边距 | 24px |
+| 卡片之间 | 24px |
+| 卡片内边距 | 20px |
+| 表单行距 | 12px |
+| 按钮之间 | 8px |
+
+### 圆角体系
+
+| 组件 | 圆角 |
+|------|------|
+| 卡片 | 16px |
+| 输入框 | 12px |
+| 按钮 | 12px |
+| 二维码预览框 | 16px |
+
+### DesignTokens 类
+
+```python
+class DesignTokens:
+    COLOR_PAGE_BG = "#F3F4F6"
+    COLOR_CARD_BG = "#FFFFFFCC"
+    COLOR_CARD_BORDER = "#E5E7EB"
+    COLOR_PRIMARY = "#2A7BF4"
+    COLOR_PRIMARY_HOVER = "#1E63D8"
+    COLOR_SECONDARY_BG = "#F9FAFB"
+    COLOR_SECONDARY_BORDER = "#D1D5DB"
+    COLOR_TEXT_PRIMARY = "#1F2937"
+    COLOR_TEXT_SECONDARY = "#6B7280"
+    COLOR_SUCCESS = "#22C55E"
+    COLOR_WARNING = "#F59E0B"
+    COLOR_ERROR = "#EF4444"
+    
+    FONT_FAMILY = "Microsoft YaHei UI"
+    FONT_SIZE_TITLE = 16
+    FONT_SIZE_LABEL = 14
+    FONT_SIZE_INPUT = 14
+    FONT_SIZE_BUTTON = 14
+    FONT_SIZE_HINT = 12
+    
+    SPACING_PAGE = 24
+    SPACING_CARD = 24
+    SPACING_CARD_PADDING = 20
+    SPACING_FORM_ROW = 12
+    SPACING_BUTTON = 8
+    
+    RADIUS_CARD = 16
+    RADIUS_INPUT = 12
+    RADIUS_BUTTON = 12
+    RADIUS_PREVIEW = 16
+    
+    HEIGHT_INPUT = 40
+    HEIGHT_BUTTON = 42
+    QR_PREVIEW_SIZE = 260
+    
+    @classmethod
+    def font_title(cls):
+        return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_TITLE, "bold")
+    
+    @classmethod
+    def font_label(cls):
+        return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_LABEL)
+    
+    @classmethod
+    def font_button(cls):
+        return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_BUTTON, "bold")
+```
+
+---
+
+## 五、二维码数据格式
 
 ### 编码内容（字符串）
 ```
@@ -77,20 +187,6 @@ NAME:张三|DATE:20240304|ID:001
 | DATE | 就诊日期，格式 YYYYMMDD | 20240304 |
 | ID | 当日序号，3 位补零 | 001 |
 
-### 解码函数
-```python
-def parse_qr_content(text: str) -> dict | None:
-    try:
-        parts = dict(item.split(':') for item in text.split('|'))
-        return {
-            'name': parts['NAME'].strip(),
-            'date': parts['DATE'].strip(),
-            'id': parts['ID'].strip()
-        }
-    except Exception:
-        return None
-```
-
 ### 文件夹命名规则
 ```
 {NAME}_{DATE}
@@ -100,20 +196,101 @@ def parse_qr_content(text: str) -> dict | None:
 
 ---
 
-## 五、GUI 界面设计
+## 六、配置管理
+
+### Config 单例类
+
+```python
+class Config:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        self.config_dir = Path.home() / '.photo_sorting'
+        self.config_file = self.config_dir / 'config.json'
+        self._defaults = {
+            'src_folder': '',
+            'dest_folder': '',
+            'same_folder': True,
+            'mode': 'copy',
+            'last_qr_name': '',
+            'last_qr_id': 1,
+            'window_geometry': '800x560'
+        }
+        self._config = self._load()
+    
+    def save(self):
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            json.dump(self._config, f, ensure_ascii=False, indent=2)
+    
+    @property
+    def src_folder(self) -> str:
+        return self._config.get('src_folder', '')
+    
+    @src_folder.setter
+    def src_folder(self, value: str):
+        self.set('src_folder', value)
+```
+
+### 持久化内容
+- 源文件夹路径
+- 输出文件夹路径
+- 是否与源文件夹相同
+- 操作模式（复制/移动）
+- 上次输入的患者姓名
+- 上次使用的序号
+- 窗口大小位置
+
+---
+
+## 七、日志系统
+
+### 配置
+
+```python
+def setup_logging():
+    log_dir = Path.home() / '.photo_sorting'
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / 'photo_sorting.log'
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)
+```
+
+### 日志记录点
+- 程序启动/关闭
+- 配置加载/保存
+- 二维码识别结果
+- 照片分组进度
+- 文件操作详情
+- 错误信息
+
+---
+
+## 八、GUI 界面设计
 
 ### 整体布局
 ```
 ┌─────────────────────────────────────────────────┐
-│     口腔照片自动分类工具                        │  ← 蓝色标题栏
-├─────────────────────────────────────────────────┤
 │  [Tab: 生成二维码]  [Tab: 整理照片]             │  ← CTkTabview
 ├─────────────────────────────────────────────────┤
 │                                                 │
 │         （当前 Tab 内容区域）                    │
+│         玻璃质感卡片布局                         │
 │                                                 │
 ├─────────────────────────────────────────────────┤
-│  ●  就绪                              v1.0      │  ← 状态栏
+│  ●  就绪                                        │  ← 状态栏
 └─────────────────────────────────────────────────┘
 ```
 
@@ -121,160 +298,160 @@ def parse_qr_content(text: str) -> dict | None:
 ```python
 root = ctk.CTk()
 root.title("口腔照片自动分类工具")
-root.geometry("800x560")
+root.geometry(config.get('window_geometry', '800x560'))
 root.resizable(True, True)
 root.minsize(700, 500)
+root.configure(fg_color=DesignTokens.COLOR_PAGE_BG)
 ```
 
-### 主题设置
+### 玻璃质感卡片
+
 ```python
-ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+card = ctk.CTkFrame(
+    parent,
+    corner_radius=DesignTokens.RADIUS_CARD,
+    fg_color=DesignTokens.COLOR_CARD_BG,
+    border_width=1,
+    border_color=DesignTokens.COLOR_CARD_BORDER
+)
 ```
 
-### 颜色方案
-| 元素 | 颜色 |
-|------|------|
-| 主按钮 | `#2563EB` → `#1D4ED8` (hover) |
-| 次要按钮 | 透明 + `#2563EB` 边框 |
-| 全屏按钮 | `#16A34A` → `#15803D` (hover) |
-| 状态指示 | 绿 `#22C55E` / 蓝 `#3B82F6` / 橙 `#F59E0B` / 红 `#EF4444` |
+### 主按钮样式
 
-### 字体统一
 ```python
-font=("Microsoft YaHei", 13)
+btn = ctk.CTkButton(
+    parent,
+    text="生成二维码",
+    fg_color=DesignTokens.COLOR_PRIMARY,
+    hover_color=DesignTokens.COLOR_PRIMARY_HOVER,
+    corner_radius=DesignTokens.RADIUS_BUTTON,
+    height=DesignTokens.HEIGHT_BUTTON,
+    font=DesignTokens.font_button(),
+    text_color=DesignTokens.COLOR_WHITE
+)
+```
+
+### 次按钮样式
+
+```python
+btn = ctk.CTkButton(
+    parent,
+    text="清空",
+    fg_color=DesignTokens.COLOR_SECONDARY_BG,
+    hover_color=DesignTokens.COLOR_SECONDARY_HOVER,
+    border_width=1,
+    border_color=DesignTokens.COLOR_SECONDARY_BORDER,
+    text_color=DesignTokens.COLOR_TEXT_PRIMARY,
+    corner_radius=DesignTokens.RADIUS_BUTTON,
+    height=DesignTokens.HEIGHT_BUTTON,
+    font=DesignTokens.font_button()
+)
 ```
 
 ---
 
-## 六、模块一：二维码生成 Tab
+## 九、模块一：二维码生成 Tab
 
 ### 布局
 ```
 ┌── 生成二维码 ──────────────────────────────────┐
 │                                                │
 │  ┌──────────────┐  ┌──────────────────────┐   │
-│  │  患者信息    │  │  二维码预览          │   │
+│  │ 患者信息     │  │ 二维码预览           │   │
 │  │              │  │                      │   │
-│  │  姓名：[___] │  │  ┌────────────┐      │   │
-│  │  日期：[___] │  │  │            │      │   │
-│  │  序号：[___] │  │  │  280x280   │      │   │
-│  │              │  │  │  二维码    │      │   │
-│  │ [生成] [清空]│  │  │            │      │   │
+│  │ 患者姓名     │  │  ┌────────────┐      │   │
+│  │ [________]   │  │  │            │      │   │
+│  │              │  │  │  260x260   │      │   │
+│  │ 就诊日期     │  │  │  二维码    │      │   │
+│  │ [________]   │  │  │            │      │   │
 │  │              │  │  └────────────┘      │   │
-│  │ 编码内容显示 │  │  [保存] [打印]       │   │
-│  └──────────────┘  │                      │   │
-│                    │ [📺 全屏展示]        │   │
-│                    └──────────────────────┘   │
+│  │ 当日序号     │  │                      │   │
+│  │ [________]   │  │ 生成后可保存或全屏   │   │
+│  │              │  │                      │   │
+│  │ [生成二维码] │  │ [保存] [打印]        │   │
+│  │ [清空]       │  │ [📺 全屏展示]        │   │
+│  │              │  │                      │   │
+│  │ 编码内容     │  │                      │   │
+│  │ NAME:...     │  │                      │   │
+│  └──────────────┘  └──────────────────────┘   │
 └────────────────────────────────────────────────┘
 ```
 
-### 核心功能
+### 标签在输入框上方布局
 
-**1. 输入校验**
-| 字段 | 校验规则 | 错误提示 |
-|------|----------|----------|
-| 姓名 | 不能为空，不能包含 `\ / : * ? " < > \|` | "姓名不能包含特殊字符" |
-| 日期 | 必须为 8 位数字，格式 YYYYMMDD | "日期格式错误" |
-| 序号 | 1-999 的整数 | "序号须为 1-999 的整数" |
-
-**2. 序号递增逻辑**
 ```python
-# 正确顺序：
-# 1. 读取当前序号（用于本次生成）
-id_num = int(self.id_var.get().strip())
+# 标签
+ctk.CTkLabel(
+    card,
+    text="患者姓名",
+    font=DesignTokens.font_label(),
+    text_color=DesignTokens.COLOR_TEXT_SECONDARY
+).grid(row=1, column=0, sticky="w", padx=20, pady=(0, 8))
 
-# 2. 生成二维码，编码内容用当前序号
-self.current_qr_image = generate_qr_image(name, date, id_num)
-
-# 3. 更新预览（280x280）和编码内容文本
-img_size = (280, 280)
-qr_resized = self.current_qr_image.resize(img_size, RESAMPLING_FILTER)
-self.qr_photoimage = CTkImage(light_image=qr_resized, size=img_size)
-content = f"NAME:{name}|DATE:{date}|ID:{id_num:03d}"
-self.content_var.set(content)
-
-# 4. 序号 +1，写回输入框（为下一次做准备）
-next_id = id_num + 1
-if next_id > 999:
-    next_id = 1
-self.id_var.set(f"{next_id:03d}")
+# 输入框（撑满宽度）
+ctk.CTkEntry(
+    card,
+    textvariable=self.name_var,
+    height=DesignTokens.HEIGHT_INPUT,
+    font=DesignTokens.font_input(),
+    corner_radius=DesignTokens.RADIUS_INPUT,
+    fg_color=DesignTokens.COLOR_WHITE,
+    text_color=DesignTokens.COLOR_TEXT_PRIMARY
+).grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 12))
 ```
 
-**3. 全屏展示（重点功能）**
+### 全屏展示
+
 ```python
 def show_fullscreen_qr(self):
-    if self.current_qr_image is None:
-        return
-
-    # 从 root 获取屏幕尺寸
-    screen_w = self.root.winfo_screenwidth()
-    screen_h = self.root.winfo_screenheight()
-
-    # 创建全屏窗口（Windows 兼容方式）
     fs = tk.Toplevel(self.root)
     fs.configure(bg='black')
+    fs.attributes('-fullscreen', True)
     fs.attributes('-topmost', True)
-    fs.overrideredirect(True)  # 去掉标题栏和边框
-    fs.geometry(f"{screen_w}x{screen_h}+0+0")  # 手动铺满屏幕
-    fs.lift()
+    fs.overrideredirect(True)
     fs.focus_force()
-
-    # 二维码尺寸：屏幕高度的 68%
-    qr_size = int(screen_h * 0.68)
+    
+    fs.update_idletasks()
+    screen_w = fs.winfo_width()
+    screen_h = fs.winfo_height()
+    
+    qr_size = int(min(screen_w, screen_h) * 0.65)
     qr_img = self.current_qr_image.resize((qr_size, qr_size), RESAMPLING_FILTER)
     qr_photo = ImageTk.PhotoImage(qr_img)
-
-    # 二维码居中显示
-    qr_label = tk.Label(fs, image=qr_photo, bg='black')
+    
+    container = tk.Frame(fs, bg='black')
+    container.place(relx=0.5, rely=0.5, anchor='center')
+    
+    qr_label = tk.Label(container, image=qr_photo, bg='black')
     qr_label.image = qr_photo
-    qr_label.pack(expand=True, pady=(int(screen_h * 0.04), 8))
-
-    # 患者信息大字显示
-    info_text = f"{self.name_var.get()}    {self.date_var.get()}"
-    info_label = tk.Label(
-        fs, text=info_text,
-        font=("Microsoft YaHei", 36, "bold"),
-        fg='white', bg='black'
-    )
-    info_label.pack(pady=(0, 16))
-
-    # 提示文字
-    hint_label = tk.Label(
-        fs, text="按 ESC 键或单击任意位置关闭",
-        font=("Microsoft YaHei", 13),
-        fg='#6B7280', bg='black'
-    )
-    hint_label.pack()
-
-    # 关闭事件绑定
+    qr_label.pack(pady=(0, 20))
+    
     fs.bind('<Escape>', lambda e: fs.destroy())
     fs.bind('<Button-1>', lambda e: fs.destroy())
 ```
 
-**关键点**：
-- 使用 `overrideredirect(True)` 去掉窗口装饰
-- 使用 `geometry(f"{screen_w}x{screen_h}+0+0")` 手动铺满
-- 二维码占屏幕 68% 高度
-- 按 ESC 或点击任意位置关闭
-
 ---
 
-## 七、模块二：照片整理 Tab
+## 十、模块二：照片整理 Tab
 
 ### 布局
 ```
 ┌── 整理照片 ────────────────────────────────────┐
 │                                                │
 │  ┌─────────────────────────────────────────┐  │
-│  │  文件夹设置                              │  │
-│  │  源文件夹：[_______________] [浏览]     │  │
-│  │  输出文件夹：[_____________] [浏览]     │  │
-│  │  ☑ 与源文件夹相同                        │  │
-│  │  操作模式：● 复制  ○ 移动               │  │
+│  │ 文件夹设置                               │  │
+│  │                                          │  │
+│  │ 源文件夹                                 │  │
+│  │ [________________________] [浏览]        │  │
+│  │                                          │  │
+│  │ 输出文件夹                               │  │
+│  │ [________________________] [浏览]        │  │
+│  │                                          │  │
+│  │ ☑ 与源文件夹相同                         │  │
+│  │ 操作模式 ● 复制  ○ 移动                 │  │
 │  └─────────────────────────────────────────┘  │
 │                                                │
-│  [开始预览] [刷新]                            │
+│  [开始预览] [刷新]                             │
 │  ┌─────────────────────────────────────────┐  │
 │  │  预览结果（可滚动）                      │  │
 │  │  [OK] 组 01  张三_20240304  (5 张)       │  │
@@ -282,21 +459,9 @@ def show_fullscreen_qr(self):
 │  │  [WARN] 组 03  未识别_001  (3 张)        │  │
 │  └─────────────────────────────────────────┘  │
 │                                                │
-│  进度条 ████████░░░░░░░░  60%                │
-│  [确认执行] [取消] [查看日志]                 │
+│  进度条 ████████░░░░░░░░                      │
+│  [确认执行] [取消] [查看日志]                  │
 └────────────────────────────────────────────────┘
-```
-
-### 核心处理流程
-
-```
-1. 用户选择源文件夹
-2. 点击「开始预览」
-3. 扫描文件夹内所有图片（按自然排序）
-4. 逐张检测是否含二维码
-5. 分组
-6. 在 CTkScrollableFrame 中显示预览结果
-7. 用户确认后执行文件操作
 ```
 
 ### 支持的图片格式
@@ -304,251 +469,70 @@ def show_fullscreen_qr(self):
 SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp'}
 ```
 
-### 文件名自然排序
-```python
-def natural_sort_key(filename: str) -> list:
-    return [
-        int(part) if part.isdigit() else part.lower()
-        for part in re.split(r'(\d+)', filename)
-    ]
-
-files.sort(key=lambda f: natural_sort_key(os.path.basename(f)))
-```
-
-### 二维码识别（兼容多库）
-```python
-# 启动时检测可用库
-HAS_PYZBAR = False
-HAS_ZXING = False
-
-try:
-    from pyzbar import pyzbar
-    HAS_PYZBAR = True
-except ImportError:
-    pass
-
-try:
-    import zxingcpp
-    import numpy as np
-    HAS_ZXING = True
-except ImportError:
-    pass
-
-# Pillow 兼容性
-try:
-    RESAMPLING_FILTER = Image.Resampling.LANCZOS
-except AttributeError:
-    RESAMPLING_FILTER = Image.LANCZOS
-
-# 自动选择识别库
-def detect_qr(filepath: str) -> str | None:
-    if HAS_PYZBAR:
-        return detect_qr_pyzbar(filepath)
-    elif HAS_ZXING:
-        return detect_qr_zxing(filepath)
-    else:
-        return None
-```
-
-### 分组逻辑
-```python
-def group_photos(sorted_files: list[str], progress_callback=None) -> list[dict]:
-    groups = []
-    current_group = None
-    unrecognized_counter = 0
-
-    for i, filepath in enumerate(sorted_files):
-        if progress_callback:
-            progress_callback(i + 1, total)
-
-        qr_content = detect_qr(filepath)
-        if qr_content is not None:
-            parsed = parse_qr_content(qr_content)
-            if parsed:
-                if current_group:
-                    groups.append(current_group)
-                # 开始新组
-                current_group = {
-                    'name': parsed['name'],
-                    'date': parsed['date'],
-                    'id': parsed['id'],
-                    'folder_name': f"{parsed['name']}_{parsed['date']}",
-                    'photos': [],
-                    'qr_photo': filepath,
-                    'status': 'ok'
-                }
-                continue
-
-        # 非二维码图片
-        if current_group is None:
-            unrecognized_counter += 1
-            current_group = {
-                'name': f'未识别_{unrecognized_counter:03d}',
-                'folder_name': f'未识别_{unrecognized_counter:03d}',
-                'photos': [],
-                'qr_photo': None,
-                'status': 'unrecognized'
-            }
-
-        current_group['photos'].append(filepath)
-
-    if current_group:
-        groups.append(current_group)
-
-    return groups
-```
-
 ### 后台线程处理
 ```python
-def start_preview(self):
-    self.preview_btn.configure(state="disabled")
-    self.status_var.set("正在扫描，请稍候...")
-
-    def update_progress(current, total):
-        percent = current / total
-        self.progress_bar.set(percent)
-        self.progress_label.configure(text=f"扫描中... {current}/{total}")
-        self.root.update_idletasks()
-
-    def worker():
-        try:
-            files = get_sorted_images(src)
-            groups = group_photos(files, update_progress)
-            self.preview_groups = groups
-            self.root.after(0, lambda: self.update_preview_list(groups))
-            self.root.after(0, lambda: self.preview_btn.configure(state="normal"))
-        except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("错误", str(e)))
-
-    threading.Thread(target=worker, daemon=True).start()
-```
-
----
-
-## 八、边界情况处理
-
-| 情况 | 处理方式 |
-|------|----------|
-| 源文件夹为空 | 提示"文件夹中没有找到支持的图片" |
-| 文件夹内无二维码 | 将所有照片归为一组 `未识别_001`，警告提示 |
-| 第一张不是二维码 | 把前面的照片归入 `未识别_001` |
-| 两个二维码之间没有照片 | 跳过，不创建空文件夹 |
-| 二维码拍模糊 | 识别失败，当普通照片并入当前组 |
-| 文件名重复 | copy/move 时追加 `_dup1`, `_dup2` 后缀 |
-| 文件夹同名冲突 | 自动追加 `_2`, `_3` 等后缀 |
-| 输出文件夹不存在 | 自动创建 |
-| 图片文件损坏 | 跳过，记录日志 |
-
----
-
-## 九、文件夹命名冲突处理
-
-```python
-def resolve_folder_name(base_path: str, folder_name: str) -> str:
-    target = os.path.join(base_path, folder_name)
-    if not os.path.exists(target):
-        return folder_name
-    counter = 2
-    while os.path.exists(os.path.join(base_path, f"{folder_name}_{counter}")):
-        counter += 1
-    return f"{folder_name}_{counter}"
-```
-
----
-
-## 十、文件操作
-
-```python
-def execute_grouping(groups: list[dict], output_dir: str, mode: str = 'copy',
-                     progress_callback=None) -> tuple[int, int, list]:
-    success_count = 0
-    fail_count = 0
-    log_messages = []
-
-    for i, group in enumerate(groups):
-        try:
-            folder_name = resolve_folder_name(output_dir, group['folder_name'])
-            target_dir = os.path.join(output_dir, folder_name)
-            os.makedirs(target_dir, exist_ok=True)
-
-            # 二维码图片存入文件夹
-            if group['qr_photo']:
-                qr_dest = os.path.join(target_dir, os.path.basename(group['qr_photo']))
-                shutil.copy2(group['qr_photo'], qr_dest)
-
-            # 处理照片
-            for photo in group['photos']:
-                base_name = os.path.basename(photo)
-                dest = os.path.join(target_dir, base_name)
-                # 处理文件名重复
-                if os.path.exists(dest):
-                    name, ext = os.path.splitext(base_name)
-                    counter = 1
-                    while os.path.exists(dest):
-                        dest = os.path.join(target_dir, f"{name}_dup{counter}{ext}")
-                        counter += 1
-
-                if mode == 'copy':
-                    shutil.copy2(photo, dest)
-                else:
-                    shutil.move(photo, dest)
-
-            success_count += 1
-        except Exception as e:
-            fail_count += 1
-            log_messages.append(f"[FAIL] {group['folder_name']}: {e}")
-
-    return success_count, fail_count, log_messages
-```
-
----
-
-## 十一、错误提示规范
-
-| 级别 | 方法 | 使用场景 |
-|------|------|----------|
-| 信息 | `messagebox.showinfo` | 完成提示 |
-| 警告 | `messagebox.showwarning` | 有未识别组、部分跳过 |
-| 错误 | `messagebox.showerror` | 文件夹不存在、库未安装 |
-
-启动时检测依赖库：
-```python
-if not HAS_PYZBAR and not HAS_ZXING:
-    messagebox.showerror(
-        "缺少依赖",
-        "未找到二维码识别库。\n\n请在命令行执行：\npip install pyzbar"
-    )
-```
-
----
-
-## 十二、HighDPI 支持
-
-### CTkImage 使用
-```python
-# 导入
-from PIL import Image, ImageTk
-import customtkinter as ctk
-CTkImage = ctk.CTkImage
-
-# 使用
-qr_resized = self.current_qr_image.resize((280, 280), RESAMPLING_FILTER)
-self.qr_photoimage = CTkImage(light_image=qr_resized, size=(280, 280))
-self.qr_label.configure(image=self.qr_photoimage, text="")
-```
-
-### Windows DPI 感知
-```python
-if __name__ == '__main__':
-    root = ctk.CTk()
+def worker():
     try:
-        from ctypes import windll
-        windll.shcore.SetProcessDpiAwareness(1)
-    except:
-        pass
-    app = App(root)
-    root.mainloop()
+        files = get_sorted_images(src)
+        groups = group_photos(files, update_progress)
+        self.preview_groups = groups
+        self.root.after(0, lambda: self.update_preview_list(groups))
+    except Exception as e:
+        logger.error(f"预览失败: {e}")
+        self.root.after(0, lambda: messagebox.showerror("错误", str(e)))
+
+threading.Thread(target=worker, daemon=True).start()
 ```
+
+---
+
+## 十一、错误处理规范
+
+### 精确异常捕获
+
+```python
+# 二维码内容解析
+def parse_qr_content(text: str) -> dict | None:
+    try:
+        parts = dict(item.split(':') for item in text.split('|'))
+        return {
+            'name': parts['NAME'].strip(),
+            'date': parts['DATE'].strip(),
+            'id': parts['ID'].strip()
+        }
+    except (ValueError, KeyError) as e:
+        logger.debug(f"二维码内容解析失败: {text}, 错误: {e}")
+        return None
+
+# 文件操作
+def execute_grouping(...):
+    try:
+        ...
+    except PermissionError as e:
+        logger.error(f"权限错误: {group['folder_name']}, {e}")
+    except OSError as e:
+        logger.error(f"系统错误: {group['folder_name']}, {e}")
+    except Exception as e:
+        logger.error(f"处理失败: {group['folder_name']}, {e}")
+```
+
+---
+
+## 十二、打包发布
+
+### PyInstaller 命令
+
+```bash
+pyinstaller --onefile --windowed --name "口腔照片自动分类工具" --clean \
+    --add-binary "pyzbar路径\libiconv.dll;pyzbar" \
+    --add-binary "pyzbar路径\libzbar-64.dll;pyzbar" \
+    main.py
+```
+
+### 注意事项
+1. pyzbar 的 DLL 需要手动添加
+2. 首次运行可能被 Windows Defender 拦截
+3. 程序会在用户目录创建配置和日志文件
 
 ---
 
@@ -574,6 +558,7 @@ if __name__ == '__main__':
 ## 十四、交付物
 
 - `main.py`：单一 Python 文件，包含全部代码
+- `requirements.txt`：依赖列表
 - `README.txt`：给最终用户的使用说明
 - `Guide.md`：本开发指南
 
@@ -584,7 +569,7 @@ if __name__ == '__main__':
 
 ### 安装依赖
 ```bash
-pip install customtkinter qrcode[pil] pyzbar Pillow
+pip install -r requirements.txt
 ```
 
 ### 运行程序
@@ -595,6 +580,15 @@ python main.py
 ---
 
 ## 十五、更新日志
+
+### v1.1
+- ✅ Fluent + 医疗风格 UI 重设计
+- ✅ Design Tokens 视觉规范系统
+- ✅ 玻璃质感卡片组件
+- ✅ 配置持久化功能
+- ✅ 标准日志系统
+- ✅ 精确异常捕获
+- ✅ requirements.txt 依赖管理
 
 ### v1.0
 - ✅ 基于 customtkinter 的现代化 UI
