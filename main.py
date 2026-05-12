@@ -31,6 +31,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 import qrcode
 import qrcode.constants as qr_constants
+from ui_helpers import build_qr_content, describe_group_for_preview
 
 # CTkImage for HighDPI support
 CTkImage = ctk.CTkImage
@@ -89,29 +90,35 @@ ctk.set_default_color_theme("blue")
 # ============================================================================
 
 class DesignTokens:
-    COLOR_PAGE_BG = "#F3F4F6"
+    COLOR_PAGE_BG = "#EEF3F7"
     COLOR_CARD_BG = "#FFFFFF"
-    COLOR_CARD_BORDER = "#E5E7EB"
-    COLOR_PRIMARY = "#2A7BF4"
-    COLOR_PRIMARY_HOVER = "#1E63D8"
-    COLOR_SECONDARY_BG = "#F9FAFB"
-    COLOR_SECONDARY_BORDER = "#D1D5DB"
-    COLOR_SECONDARY_HOVER = "#E5E7EB"
-    COLOR_TEXT_PRIMARY = "#1F2937"
-    COLOR_TEXT_SECONDARY = "#6B7280"
+    COLOR_CARD_BORDER = "#D8E1E8"
+    COLOR_PRIMARY = "#123A70"
+    COLOR_PRIMARY_HOVER = "#0D2B52"
+    COLOR_SECONDARY_BG = "#F6F9FB"
+    COLOR_SECONDARY_BORDER = "#B9C9D6"
+    COLOR_SECONDARY_HOVER = "#E8F0F5"
+    COLOR_TEXT_PRIMARY = "#132433"
+    COLOR_TEXT_SECONDARY = "#5E7487"
     COLOR_WHITE = "#FFFFFF"
-    COLOR_SUCCESS = "#22C55E"
-    COLOR_WARNING = "#F59E0B"
-    COLOR_ERROR = "#EF4444"
+    COLOR_SUCCESS = "#1E8F72"
+    COLOR_WARNING = "#C98512"
+    COLOR_ERROR = "#D14343"
+    COLOR_ACCENT = "#83AD64"
+    COLOR_HERO_BG = "#F7FAF8"
+    COLOR_HERO_BORDER = "#D4E2DB"
+    COLOR_STATUS_BG = "#F8FBFD"
     
     FONT_FAMILY = "Microsoft YaHei UI"
     FONT_FAMILY_FALLBACK = "Segoe UI"
     
+    FONT_SIZE_HERO = 24
     FONT_SIZE_TITLE = 16
     FONT_SIZE_LABEL = 14
     FONT_SIZE_INPUT = 14
     FONT_SIZE_BUTTON = 14
     FONT_SIZE_HINT = 12
+    FONT_SIZE_META = 11
     
     SPACING_PAGE = 24
     SPACING_CARD = 24
@@ -130,6 +137,10 @@ class DesignTokens:
     HEIGHT_TAB = 48
     
     QR_PREVIEW_SIZE = 260
+
+    @classmethod
+    def font_hero(cls):
+        return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_HERO, "bold")
     
     @classmethod
     def font_title(cls):
@@ -150,6 +161,10 @@ class DesignTokens:
     @classmethod
     def font_hint(cls):
         return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_HINT)
+
+    @classmethod
+    def font_meta(cls):
+        return ctk.CTkFont(cls.FONT_FAMILY, cls.FONT_SIZE_META)
 
 # ============================================================================
 # 配置管理
@@ -386,7 +401,7 @@ def resolve_folder_name(base_path: str, folder_name: str) -> str:
 
 def generate_qr_image(name: str, date: str, id_num: int) -> Image.Image:
     """生成二维码图片"""
-    content = f"NAME:{name}|DATE:{date}|ID:{id_num:03d}"
+    content = build_qr_content(name, date, id_num)
     qr = qrcode.QRCode(
         version=2,
         error_correction=qr_constants.ERROR_CORRECT_H,
@@ -612,18 +627,18 @@ class App:
         )
         self.main_frame.pack(fill="both", expand=True, padx=DesignTokens.SPACING_PAGE, pady=DesignTokens.SPACING_PAGE)
 
-        self.create_about_button()
+        self.create_header()
 
         self.tabview = ctk.CTkTabview(
             self.main_frame,
             fg_color=DesignTokens.COLOR_PAGE_BG,
-            segmented_button_fg_color=DesignTokens.COLOR_PAGE_BG,
+            segmented_button_fg_color=DesignTokens.COLOR_HERO_BG,
             segmented_button_selected_color=DesignTokens.COLOR_PRIMARY,
             segmented_button_selected_hover_color=DesignTokens.COLOR_PRIMARY_HOVER,
-            segmented_button_unselected_color=DesignTokens.COLOR_PAGE_BG,
+            segmented_button_unselected_color=DesignTokens.COLOR_HERO_BG,
             segmented_button_unselected_hover_color=DesignTokens.COLOR_SECONDARY_HOVER
         )
-        self.tabview.pack(fill="both", expand=True)
+        self.tabview.pack(fill="both", expand=True, pady=(DesignTokens.SPACING_COMPONENT, 0))
 
         self.tab_qr = self.tabview.add("  生成二维码  ")
         self.tab_sort = self.tabview.add("  整理照片  ")
@@ -638,9 +653,9 @@ class App:
         """创建状态栏"""
         status_frame = ctk.CTkFrame(
             self.root, 
-            height=40, 
+            height=44, 
             corner_radius=0,
-            fg_color=DesignTokens.COLOR_WHITE,
+            fg_color=DesignTokens.COLOR_STATUS_BG,
             border_width=1,
             border_color=DesignTokens.COLOR_CARD_BORDER
         )
@@ -666,10 +681,65 @@ class App:
         )
         status_label.pack(side="left", padx=DesignTokens.SPACING_BUTTON, fill="x", expand=True)
 
-    def create_about_button(self):
-        """创建右上角关于按钮"""
+        self.status_meta_var = tk.StringVar(value=f"{APP_NAME} · v{APP_VERSION}")
+        meta_label = ctk.CTkLabel(
+            status_frame,
+            textvariable=self.status_meta_var,
+            font=DesignTokens.font_meta(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+            anchor="e",
+        )
+        meta_label.pack(side="right", padx=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING))
+
+    def create_header(self):
+        hero = ctk.CTkFrame(
+            self.main_frame,
+            corner_radius=DesignTokens.RADIUS_CARD,
+            fg_color=DesignTokens.COLOR_HERO_BG,
+            border_width=1,
+            border_color=DesignTokens.COLOR_HERO_BORDER,
+        )
+        hero.pack(fill="x")
+        hero.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            hero,
+            text=APP_PUBLISHER,
+            font=DesignTokens.font_meta(),
+            text_color=DesignTokens.COLOR_SUCCESS,
+        ).grid(row=0, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(16, 4))
+
+        ctk.CTkLabel(
+            hero,
+            text=APP_NAME,
+            font=DesignTokens.font_hero(),
+            text_color=DesignTokens.COLOR_TEXT_PRIMARY,
+        ).grid(row=1, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING)
+
+        ctk.CTkLabel(
+            hero,
+            text="用于诊间照片二维码标记、分组预览与离线批量整理的 Windows 专业工具。",
+            font=DesignTokens.font_label(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+        ).grid(row=2, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(6, 14))
+
+        pill_frame = ctk.CTkFrame(hero, fg_color="transparent")
+        pill_frame.grid(row=3, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, 18))
+
+        for text in ("离线可用", "Win64 交付", "二维码分组"):
+            ctk.CTkLabel(
+                pill_frame,
+                text=text,
+                font=DesignTokens.font_hint(),
+                text_color=DesignTokens.COLOR_PRIMARY,
+                fg_color=DesignTokens.COLOR_WHITE,
+                corner_radius=999,
+                padx=12,
+                pady=6,
+            ).pack(side="left", padx=(0, 8))
+
         self.about_btn = ctk.CTkButton(
-            self.root,
+            hero,
             text="关于",
             width=56,
             height=32,
@@ -680,7 +750,7 @@ class App:
             font=ctk.CTkFont(DesignTokens.FONT_FAMILY, 14),
             command=self.open_about
         )
-        self.about_btn.place(relx=0.97, rely=0.03, anchor="ne")
+        self.about_btn.grid(row=0, column=1, rowspan=2, sticky="ne", padx=DesignTokens.SPACING_CARD_PADDING, pady=DesignTokens.SPACING_CARD_PADDING)
 
     def open_about(self):
         """打开关于弹窗"""
@@ -704,7 +774,7 @@ class App:
         ctk.CTkLabel(
             frame,
             text=APP_NAME,
-            font=DesignTokens.font_title(),
+            font=DesignTokens.font_hero(),
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         ).pack(anchor="w", pady=(0, 12))
 
@@ -716,7 +786,9 @@ class App:
             f"更新日期：{APP_UPDATED_AT}\n\n"
             "本工具用于门诊拍摄照片的批量整理与归档。\n"
             "支持二维码生成、患者分组与离线文件整理，\n"
-            "适用于内网 Windows 工作站的标准化交付。"
+            "适用于内网 Windows 工作站的标准化交付。\n\n"
+            "本次细修重点：品牌统一、状态反馈清晰、\n"
+            "预览信息层级更适合临床快速核对。"
         )
 
         ctk.CTkLabel(
@@ -764,13 +836,20 @@ class App:
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         ).grid(row=0, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(DesignTokens.SPACING_CARD_PADDING, DesignTokens.SPACING_FORM_ROW))
 
+        ctk.CTkLabel(
+            left_panel,
+            text="录入患者姓名、就诊日期和当日序号，生成可用于拍摄分隔的二维码。",
+            font=DesignTokens.font_hint(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+        ).grid(row=1, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+
         name_label = ctk.CTkLabel(
             left_panel,
             text="患者姓名",
             font=DesignTokens.font_label(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        name_label.grid(row=1, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        name_label.grid(row=2, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.name_var = tk.StringVar()
         self.name_entry = ctk.CTkEntry(
@@ -783,7 +862,7 @@ class App:
             border_color=DesignTokens.COLOR_CARD_BORDER,
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         )
-        self.name_entry.grid(row=2, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.name_entry.grid(row=3, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         date_label = ctk.CTkLabel(
             left_panel,
@@ -791,7 +870,7 @@ class App:
             font=DesignTokens.font_label(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        date_label.grid(row=3, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        date_label.grid(row=4, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.date_var = tk.StringVar(value=datetime.today().strftime('%Y%m%d'))
         self.date_entry = ctk.CTkEntry(
@@ -804,7 +883,7 @@ class App:
             border_color=DesignTokens.COLOR_CARD_BORDER,
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         )
-        self.date_entry.grid(row=4, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.date_entry.grid(row=5, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         id_label = ctk.CTkLabel(
             left_panel,
@@ -812,7 +891,7 @@ class App:
             font=DesignTokens.font_label(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        id_label.grid(row=5, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        id_label.grid(row=6, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.id_var = tk.StringVar(value='001')
         self.id_entry = ctk.CTkEntry(
@@ -825,10 +904,10 @@ class App:
             border_color=DesignTokens.COLOR_CARD_BORDER,
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         )
-        self.id_entry.grid(row=6, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.id_entry.grid(row=7, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         btn_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
-        btn_frame.grid(row=7, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING))
+        btn_frame.grid(row=8, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING))
 
         ctk.CTkButton(
             btn_frame,
@@ -861,7 +940,7 @@ class App:
             corner_radius=DesignTokens.RADIUS_INPUT,
             fg_color=DesignTokens.COLOR_SECONDARY_BG
         )
-        content_frame.grid(row=8, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
+        content_frame.grid(row=9, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
 
         ctk.CTkLabel(
             content_frame,
@@ -897,6 +976,13 @@ class App:
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         ).grid(row=0, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(DesignTokens.SPACING_CARD_PADDING, DesignTokens.SPACING_FORM_ROW))
 
+        ctk.CTkLabel(
+            right_panel,
+            text="建议保存 PNG 后打印，或直接全屏展示供相机先拍摄二维码。",
+            font=DesignTokens.font_hint(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+        ).grid(row=1, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+
         self.qr_frame = ctk.CTkFrame(
             right_panel,
             fg_color=DesignTokens.COLOR_WHITE,
@@ -906,7 +992,7 @@ class App:
             width=DesignTokens.QR_PREVIEW_SIZE + 40,
             height=DesignTokens.QR_PREVIEW_SIZE + 40
         )
-        self.qr_frame.grid(row=1, column=0, sticky="", padx=DesignTokens.SPACING_CARD_PADDING, pady=DesignTokens.SPACING_BUTTON)
+        self.qr_frame.grid(row=2, column=0, sticky="", padx=DesignTokens.SPACING_CARD_PADDING, pady=DesignTokens.SPACING_BUTTON)
         self.qr_frame.grid_propagate(False)
 
         self.qr_label = ctk.CTkLabel(
@@ -925,10 +1011,10 @@ class App:
             font=DesignTokens.font_hint(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        hint_label.grid(row=2, column=0, pady=(0, DesignTokens.SPACING_BUTTON))
+        hint_label.grid(row=3, column=0, pady=(0, DesignTokens.SPACING_BUTTON))
 
         action_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
-        action_frame.grid(row=3, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        action_frame.grid(row=4, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.save_btn = ctk.CTkButton(
             action_frame,
@@ -970,7 +1056,7 @@ class App:
             text_color=DesignTokens.COLOR_WHITE,
             state="disabled"
         )
-        self.fullscreen_btn.grid(row=4, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
+        self.fullscreen_btn.grid(row=5, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
 
     def init_sort_tab(self):
         """初始化照片整理 Tab"""
@@ -994,13 +1080,20 @@ class App:
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         ).grid(row=0, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(DesignTokens.SPACING_CARD_PADDING, DesignTokens.SPACING_FORM_ROW))
 
+        ctk.CTkLabel(
+            top_frame,
+            text="按拍摄顺序扫描图片，自动识别二维码并生成患者分组。执行前可先核对预览结果。",
+            font=DesignTokens.font_hint(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+        ).grid(row=1, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+
         src_label = ctk.CTkLabel(
             top_frame,
             text="源文件夹",
             font=DesignTokens.font_label(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        src_label.grid(row=1, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        src_label.grid(row=2, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.src_var = tk.StringVar()
         self.src_entry = ctk.CTkEntry(
@@ -1013,7 +1106,7 @@ class App:
             border_color=DesignTokens.COLOR_CARD_BORDER,
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         )
-        self.src_entry.grid(row=2, column=0, columnspan=2, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.src_entry.grid(row=3, column=0, columnspan=2, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         ctk.CTkButton(
             top_frame,
@@ -1028,7 +1121,7 @@ class App:
             border_width=1,
             border_color=DesignTokens.COLOR_SECONDARY_BORDER,
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
-        ).grid(row=2, column=2, padx=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING), pady=(0, DesignTokens.SPACING_FORM_ROW))
+        ).grid(row=3, column=2, padx=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING), pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         dest_label = ctk.CTkLabel(
             top_frame,
@@ -1036,7 +1129,7 @@ class App:
             font=DesignTokens.font_label(),
             text_color=DesignTokens.COLOR_TEXT_SECONDARY
         )
-        dest_label.grid(row=3, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
+        dest_label.grid(row=4, column=0, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_BUTTON))
 
         self.dest_var = tk.StringVar()
         self.dest_entry = ctk.CTkEntry(
@@ -1050,7 +1143,7 @@ class App:
             text_color=DesignTokens.COLOR_TEXT_PRIMARY,
             state="disabled"
         )
-        self.dest_entry.grid(row=4, column=0, columnspan=2, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.dest_entry.grid(row=5, column=0, columnspan=2, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         self.browse_dest_btn = ctk.CTkButton(
             top_frame,
@@ -1067,7 +1160,7 @@ class App:
             text_color=DesignTokens.COLOR_TEXT_PRIMARY,
             state="disabled"
         )
-        self.browse_dest_btn.grid(row=4, column=2, padx=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING), pady=(0, DesignTokens.SPACING_FORM_ROW))
+        self.browse_dest_btn.grid(row=5, column=2, padx=(DesignTokens.SPACING_BUTTON, DesignTokens.SPACING_CARD_PADDING), pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         self.same_folder_var = tk.BooleanVar(value=True)
         ctk.CTkCheckBox(
@@ -1080,10 +1173,10 @@ class App:
             fg_color=DesignTokens.COLOR_PRIMARY,
             hover_color=DesignTokens.COLOR_PRIMARY_HOVER,
             border_color=DesignTokens.COLOR_SECONDARY_BORDER
-        ).grid(row=5, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
+        ).grid(row=6, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_FORM_ROW))
 
         mode_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
-        mode_frame.grid(row=6, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
+        mode_frame.grid(row=7, column=0, columnspan=3, sticky="w", padx=DesignTokens.SPACING_CARD_PADDING, pady=(0, DesignTokens.SPACING_CARD_PADDING))
 
         ctk.CTkLabel(
             mode_frame,
@@ -1130,6 +1223,14 @@ class App:
 
         btn_frame = ctk.CTkFrame(middle_frame, fg_color="transparent")
         btn_frame.grid(row=0, column=0, sticky="ew", padx=DesignTokens.SPACING_CARD_PADDING, pady=DesignTokens.SPACING_CARD_PADDING)
+
+        self.preview_summary_var = tk.StringVar(value="尚未扫描。选择源文件夹后点击“开始预览”。")
+        ctk.CTkLabel(
+            btn_frame,
+            textvariable=self.preview_summary_var,
+            font=DesignTokens.font_hint(),
+            text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+        ).pack(side="right")
 
         self.preview_btn = ctk.CTkButton(
             btn_frame,
@@ -1326,7 +1427,7 @@ class App:
         self.qr_photoimage = CTkImage(light_image=qr_resized, size=img_size)
         self.qr_label.configure(image=self.qr_photoimage, text="")
 
-        content = f"NAME:{name}|DATE:{date}|ID:{id_num:03d}"
+        content = build_qr_content(name, date, id_num)
         self.content_var.set(content)
 
         # 4. 序号 +1，写回输入框（为下一次做准备）
@@ -1468,6 +1569,7 @@ class App:
                     self.root.after(0, lambda: messagebox.showwarning("警告", "文件夹中没有找到支持的图片"))
                     self.root.after(0, lambda: self.status_var.set("就绪"))
                     self.root.after(0, lambda: self.status_indicator.configure(text_color=DesignTokens.COLOR_SUCCESS))
+                    self.root.after(0, lambda: self.preview_summary_var.set("未发现可处理图片。"))
                     self.root.after(0, lambda: self.preview_btn.configure(state="normal"))
                     return
 
@@ -1478,6 +1580,7 @@ class App:
                 self.root.after(0, lambda: self.preview_btn.configure(state="normal"))
                 self.root.after(0, lambda: self.refresh_btn.configure(state="normal"))
                 self.root.after(0, lambda: self.exec_btn.configure(state="normal"))
+                self.root.after(0, lambda: self.preview_summary_var.set(self._build_preview_summary(groups)))
                 self.root.after(0, lambda: self.status_var.set(f"预览完成，共 {len(groups)} 组"))
                 self.root.after(0, lambda: self.status_indicator.configure(text_color=DesignTokens.COLOR_SUCCESS))
             except Exception as e:
@@ -1500,23 +1603,50 @@ class App:
         self.preview_items = []
 
         for i, group in enumerate(groups):
-            photo_count = len(group['photos'])
-            if group['status'] == 'ok':
-                text = f"[OK] 组{i+1:02d}  {group['folder_name']}  ({photo_count}张)"
-                color = "#22C55E"
-            else:
-                text = f"[WARN] 组{i+1:02d}  {group['folder_name']}  ({photo_count}张)"
-                color = "#F59E0B"
-
-            item = ctk.CTkLabel(
+            descriptor = describe_group_for_preview(i, group)
+            item = ctk.CTkFrame(
                 self.scrollable_frame,
-                text=text,
-                font=ctk.CTkFont("Consolas", 12),
-                text_color=color,
-                anchor="w"
+                fg_color=DesignTokens.COLOR_SECONDARY_BG,
+                border_width=1,
+                border_color=DesignTokens.COLOR_CARD_BORDER,
+                corner_radius=DesignTokens.RADIUS_INPUT,
             )
-            item.pack(fill="x", padx=10, pady=3)
+            item.pack(fill="x", padx=8, pady=6)
+            badge_color = DesignTokens.COLOR_SUCCESS if descriptor["tone"] == "success" else DesignTokens.COLOR_WARNING
+
+            ctk.CTkLabel(
+                item,
+                text=descriptor["badge"],
+                font=DesignTokens.font_hint(),
+                text_color=DesignTokens.COLOR_WHITE,
+                fg_color=badge_color,
+                corner_radius=999,
+                padx=10,
+                pady=4,
+            ).pack(anchor="w", padx=12, pady=(10, 6))
+
+            ctk.CTkLabel(
+                item,
+                text=descriptor["title"],
+                font=DesignTokens.font_label(),
+                text_color=DesignTokens.COLOR_TEXT_PRIMARY,
+                anchor="w",
+            ).pack(fill="x", padx=12)
+
+            ctk.CTkLabel(
+                item,
+                text=descriptor["detail"],
+                font=DesignTokens.font_hint(),
+                text_color=DesignTokens.COLOR_TEXT_SECONDARY,
+                anchor="w",
+            ).pack(fill="x", padx=12, pady=(4, 10))
             self.preview_items.append(item)
+
+    def _build_preview_summary(self, groups: list[dict]) -> str:
+        recognized_count = sum(1 for group in groups if group.get("status") == "ok")
+        warning_count = len(groups) - recognized_count
+        total_photos = sum(len(group.get("photos", [])) for group in groups)
+        return f"共 {len(groups)} 组，{total_photos} 张照片；已识别 {recognized_count} 组，待确认 {warning_count} 组。"
 
     def confirm_execute(self):
         """确认执行"""
