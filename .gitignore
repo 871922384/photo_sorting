@@ -46,6 +46,8 @@ desktop.ini
 *.tiff
 *.webp
 !README_images/
+!packaging/windows/assets/*.png
+!packaging/windows/assets/*.bmp
 
 # Test data
 test_photos/
