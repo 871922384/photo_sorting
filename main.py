@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import threading
 import tkinter as tk
 from datetime import datetime
@@ -33,6 +34,27 @@ import qrcode.constants as qr_constants
 
 # CTkImage for HighDPI support
 CTkImage = ctk.CTkImage
+
+APP_NAME = "极口腔照片整理助手"
+APP_PUBLISHER = "极口腔"
+APP_VERSION = "1.1.0"
+APP_UPDATED_AT = "2026-05-12"
+
+
+def resource_path(relative_path: str) -> Path:
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base_path / relative_path
+
+
+def branding_asset_path(filename: str) -> Path:
+    candidates = [
+        resource_path(f"branding/{filename}"),
+        Path(__file__).resolve().parent / "packaging" / "windows" / "assets" / filename,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 # ============================================================================
 # 日志配置
@@ -501,10 +523,11 @@ def execute_grouping(groups: list[dict], output_dir: str, mode: str = 'copy',
 class App:
     def __init__(self, root: ctk.CTk):
         self.root = root
-        self.root.title("口腔照片自动分类工具")
+        self.root.title(APP_NAME)
         self.root.geometry(config.get('window_geometry', '800x560'))
         self.root.resizable(True, True)
         self.root.minsize(700, 500)
+        self._apply_window_icon()
         
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -549,6 +572,15 @@ class App:
             self.browse_dest_btn.configure(state="normal")
         
         logger.debug("配置已加载")
+
+    def _apply_window_icon(self):
+        icon_path = branding_asset_path("jikeyan_app_icon.ico")
+        if not icon_path.exists():
+            return
+        try:
+            self.root.iconbitmap(default=str(icon_path))
+        except Exception as e:
+            logger.debug(f"设置窗口图标失败: {e}")
     
     def _save_config(self):
         config.src_folder = self.src_var.get()
@@ -638,8 +670,8 @@ class App:
         """创建右上角关于按钮"""
         self.about_btn = ctk.CTkButton(
             self.root,
-            text="ℹ️",
-            width=32,
+            text="关于",
+            width=56,
             height=32,
             corner_radius=16,
             fg_color=DesignTokens.COLOR_SECONDARY_BG,
@@ -653,8 +685,8 @@ class App:
     def open_about(self):
         """打开关于弹窗"""
         win = ctk.CTkToplevel(self.root)
-        win.title("关于本工具")
-        win.geometry("360x320")
+        win.title(f"关于 {APP_NAME}")
+        win.geometry("420x320")
         win.resizable(False, False)
         win.configure(fg_color=DesignTokens.COLOR_CARD_BG)
         win.transient(self.root)
@@ -671,19 +703,20 @@ class App:
 
         ctk.CTkLabel(
             frame,
-            text="关于本工具",
+            text=APP_NAME,
             font=DesignTokens.font_title(),
             text_color=DesignTokens.COLOR_TEXT_PRIMARY
         ).pack(anchor="w", pady=(0, 12))
 
         info = (
+            f"品牌：{APP_PUBLISHER}\n"
             "开发者：Rex Xu\n"
             "邮箱：871922384@qq.com\n"
-            "版本：v1.0.0\n"
-            "更新日期：2026-03-07\n\n"
-            "本工具用于口腔照片的自动分类与整理，\n"
-            "支持二维码生成、病人信息管理与照片分组，\n"
-            "适用于内网环境下的口腔科工作流程优化。"
+            f"版本：v{APP_VERSION}\n"
+            f"更新日期：{APP_UPDATED_AT}\n\n"
+            "本工具用于门诊拍摄照片的批量整理与归档。\n"
+            "支持二维码生成、患者分组与离线文件整理，\n"
+            "适用于内网 Windows 工作站的标准化交付。"
         )
 
         ctk.CTkLabel(
