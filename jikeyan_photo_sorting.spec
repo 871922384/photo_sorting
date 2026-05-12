@@ -3,7 +3,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_dynamic_libs
 
 
-project_root = Path(SPECPATH).resolve().parent
+project_root = Path(SPECPATH).resolve()
 app_icon_path = project_root / "packaging" / "windows" / "assets" / "jikeyan_app_icon.ico"
 version_info_path = project_root / "packaging" / "windows" / "file_version_info.txt"
 readme_path = project_root / "README.txt"
